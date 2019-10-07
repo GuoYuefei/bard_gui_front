@@ -8,9 +8,6 @@ const IndexPage = () => (
   <Layout>
     <SEO title="Home" />
     <BardConfigForm /> 
-    <div>
-      
-    </div>
   </Layout>
 )
 
