@@ -1,8 +1,7 @@
 import React from 'react'
-import { Form, Tooltip, Icon, Input, Button, Row, Col, Select, InputNumber, message } from 'antd'
+import { Form, Tooltip, Icon, Input, Button, Row, Col, Select, InputNumber, message, Switch, Popconfirm } from 'antd'
 import yaml from 'js-yaml'
 import { api_host } from '../config'
-import { async } from 'q'
 
 const { Item } = Form
 const { Option } = Select
@@ -14,12 +13,22 @@ class BardConfigForm extends React.Component {
         this.state = {
             config: null,
             plugins_list: null,
+            status: false,
+            switchLoading: false,
+            restartLoading: false,
+            installLoading: false,
         }
     }
 
     componentDidMount() {
         this.loadingPlugins()
         this.loading()
+        this.timer_status()
+    }
+
+    componentWillUnmount() {
+        // 清除定时器
+        this.interval && clearInterval(this.interval);
     }
 
     loading = async () => {
@@ -41,6 +50,28 @@ class BardConfigForm extends React.Component {
         this.setState({ plugins_list })
     }
 
+    // 这个
+    timer_status = () => {
+        this.loaddingStatus()
+        this.interval = setInterval(this.loaddingStatus, 3000);
+    }
+
+    loaddingStatus = async () => {
+        const response = await fetch(api_host + '/bard/status')
+        const data = await response.json();
+
+        if(data.code === 1) {
+            this.setState({
+                status: false,
+            })
+        } else if(data.code === 0) {
+            this.setState({
+                status: true
+            })
+        }
+        
+    }
+
     saveConfig = () => {
         
         const values = this.formData()
@@ -48,7 +79,6 @@ class BardConfigForm extends React.Component {
         // console.log("==>", values)
         // console.log("======>", yaml.safeDump(values))
 
-        // TODO 失败和成功应该有反馈
         fetch(api_host + '/bard/config/update', {
             method: 'POST',
             body: yaml.safeDump(values),
@@ -96,7 +126,7 @@ class BardConfigForm extends React.Component {
         return config
     }
 
-    do = (uri, tips1, tips2, tips3) => {
+    do = (uri, tips1, tips2, tips3, callback1, callback2) => {
         fetch(api_host + uri, {
             method: 'POST',
         }).then((response) => {
@@ -107,13 +137,18 @@ class BardConfigForm extends React.Component {
             if(data.code === 0) {
                 // ==0 无错
                 message.success(data.message)
+                callback1&&callback1()
+                callback2&&callback2()
             } else {
+                callback2&&callback2()
                 message.error(data.message)
             }
         }, error => {
+            callback2&&callback2()
             // go程序错误，非shell程序错误
             message.error(tips2)
         }).catch( err => {
+            callback2&&callback2()
             message.error(tips3)
         })
     }
@@ -125,6 +160,12 @@ class BardConfigForm extends React.Component {
             "数据接收错误， bard是否打开未知",
             "打开bard失败",
             "数据发送失败，打开bard失败",
+            this.loaddingStatus,
+            () => {
+                this.setState({
+                    switchLoading: false,
+                })
+            },
         )
     }
 
@@ -135,31 +176,63 @@ class BardConfigForm extends React.Component {
             "数据接收错误， bard是否关闭未知",
             "关闭bard失败",
             "数据发送失败，关闭bard失败",
+            this.loaddingStatus,
+            () => {
+                this.setState({
+                    switchLoading: false,
+                })
+            },
         )
+    }
+    
+    onSwitch = (checked) => {
+        this.setState({
+            switchLoading: true,
+        })
+        if(checked) {
+            this.open()
+        } else {
+            this.close()
+        }
     }
 
     // 重启bard
     restart = () => {
+        this.setState({
+            switchLoading: true,
+            restartLoading: true,
+        })
         this.do(
             '/bard/restart', 
             "数据接收错误， bard是否打开未知",
             "重新启动bard失败",
             "数据发送失败，重新启动bard失败",
+            this.loaddingStatus,
+            () => {
+                this.setState({
+                    switchLoading: false,
+                    restartLoading: false,
+                })
+            },
         )
-    }
-
-    // TODO 查看bard的运行状态
-    status = () => {
-
     }
 
     // 安装bard
     install = () => {
+        this.setState({
+            installLoading: true,
+        })
         this.do(
             '/bard/install', 
             "数据接收错误， bard是否安装未知未知",
             "安装bard失败",
             "数据发送失败，安装bard失败",
+            this.loading,
+            () => {
+                this.setState({
+                    installLoading: false,
+                })
+            }
         )
     }
 
@@ -175,6 +248,9 @@ class BardConfigForm extends React.Component {
                 sm: { span: 21 },
             },
         };
+
+        // switch 根据状态改变颜色
+        const switchStyle = this.state.status ? { backgroundColor: "rgba(0, 255, 0, 1)"} : {}; 
 
         const { getFieldDecorator, setFieldsValue } = this.props.form;
 
@@ -374,7 +450,7 @@ class BardConfigForm extends React.Component {
                         // rules: [{ required: true, message: 'Please input your SubProtocol!', whitespace: true }],
                     })(<Select
                         showSearch
-                        placeholder="Select a TCSP"
+                        placeholder="插件配置不为空时，该项也不得为空"
                         optionFilterProp="children"
                         allowClear
                         onChange={(v) => {
@@ -398,7 +474,8 @@ class BardConfigForm extends React.Component {
                             保存配置
                         </Button>
                     </Col>
-                    <Col span={5}>
+                    
+                    {/* <Col span={5}>
                         <Button type="primary" htmlType="submit" onClick={this.open}>
                             打开bard
                         </Button> 
@@ -407,15 +484,43 @@ class BardConfigForm extends React.Component {
                         <Button type="primary" htmlType="submit" onClick={this.close}>
                             关闭bard
                         </Button>
-                    </Col>
+                    </Col> */}
+
                     <Col span={5}>
-                        <Button type="primary" htmlType="submit" onClick={this.restart}>
+                    <Popconfirm
+                        title="确定重新安装?(覆盖配置)"
+                        onConfirm={this.install}
+                        // onCancel={cancel}
+                        okText="Yes"
+                        cancelText="No"
+                    >
+                        <Button type="primary" htmlType="submit" 
+                            loading={this.state.installLoading}
+                        >
+                            安装bard
+                        </Button>
+                    </Popconfirm>
+                        
+                    </Col>
+
+                    <Col span={5}>
+                        <Button type="primary" htmlType="submit" onClick={this.restart}
+                            loading={this.state.restartLoading}
+                        >
                             重启bard
                         </Button>
                     </Col>
-                </Row>
-                    
 
+                    <Col lg={5} style={{ paddingTop: 5, paddingLeft: 15 }}>
+                        <Switch style={ switchStyle }
+                            checked={this.state.status}
+                            onChange={this.onSwitch}
+                            loading={this.state.switchLoading}
+                        >
+                          
+                        </Switch>
+                    </Col>
+                </Row>   
             </Form>
         )
     }
