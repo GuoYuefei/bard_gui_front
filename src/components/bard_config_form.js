@@ -50,7 +50,6 @@ class BardConfigForm extends React.Component {
         this.setState({ plugins_list })
     }
 
-    // 这个
     timer_status = () => {
         this.loaddingStatus()
         this.interval = setInterval(this.loaddingStatus, 3000);
@@ -75,6 +74,10 @@ class BardConfigForm extends React.Component {
     saveConfig = () => {
         
         const values = this.formData()
+        if(!values) {
+            // 返回的是假值的话就直接return
+            return 
+        }
 
         // console.log("==>", values)
         // console.log("======>", yaml.safeDump(values))
@@ -110,6 +113,7 @@ class BardConfigForm extends React.Component {
             if(errors) {
                 // 存在错误 提示
                 message.error('输入存在错误');
+                return null;
             }
             // console.log(values)
             // 这里还是手动组装传输数据
@@ -137,8 +141,8 @@ class BardConfigForm extends React.Component {
             if(data.code === 0) {
                 // ==0 无错
                 message.success(data.message)
-                callback1&&callback1()
                 callback2&&callback2()
+                callback1&&callback1()
             } else {
                 callback2&&callback2()
                 message.error(data.message)
@@ -238,6 +242,8 @@ class BardConfigForm extends React.Component {
 
     render() {
 
+        const { installLoading } = this.state
+
         const formItemLayout = {
             labelCol: {
                 xs: { span: 24 },
@@ -293,7 +299,8 @@ class BardConfigForm extends React.Component {
                     {getFieldDecorator('server', {
                         initialValue: server,
                         rules: [{ required: true, message: 'Please input your server ip or domian!', whitespace: true }],
-                    })(<Input.Password 
+                    })(<Input.Password
+                        disabled={installLoading}
                         onChange={v => {
                             setFieldsValue({ server: v })
                         }}
@@ -316,6 +323,7 @@ class BardConfigForm extends React.Component {
                     })(<InputNumber
                         style={{ width: '100%' }}
                         min={1} max={65535}
+                        disabled={installLoading}
                         onChange={v => {
                             setFieldsValue({ server_port: v })
                         }} />
@@ -335,7 +343,8 @@ class BardConfigForm extends React.Component {
                     {getFieldDecorator('username', {
                         initialValue: username,
                         rules: [{ required: true, message: 'Please input your username!', whitespace: true }],
-                    })(<Input 
+                    })(<Input
+                        disabled={installLoading}
                         onChange={v => {
                             setFieldsValue({ username: v })
                         }}
@@ -355,7 +364,8 @@ class BardConfigForm extends React.Component {
                     {getFieldDecorator('password', {
                         initialValue: password,
                         rules: [{ required: true, message: 'Please input your password!', whitespace: true }],
-                    })(<Input.Password 
+                    })(<Input.Password
+                        disabled={installLoading}
                         onChange={v => {
                             setFieldsValue({ password: v })
                         }}
@@ -367,7 +377,7 @@ class BardConfigForm extends React.Component {
                     label={
                         <span>
                             客户端&nbsp;
-                            <Tooltip title="一般为127.0.0.1">
+                            <Tooltip title="本机ip，一般为回环网ip127.0.0.1">
                                 <Icon type="question-circle-o" />
                             </Tooltip>
                         </span>
@@ -376,7 +386,8 @@ class BardConfigForm extends React.Component {
                     {getFieldDecorator('local_address', {
                         initialValue: local_address,
                         rules: [{ required: true, message: 'Please input your local ip!', whitespace: true }],
-                    })(<Input 
+                    })(<Input
+                        disabled={installLoading}
                         onChange={v => {
                             setFieldsValue({ local_address: v })
                         }}
@@ -400,6 +411,7 @@ class BardConfigForm extends React.Component {
                         <InputNumber
                             style={{ width: '100%' }}
                             min={1} max={65535}
+                            disabled={installLoading}
                             onChange={v => {
                                 setFieldsValue({ local_port: v })
                             }}
@@ -423,6 +435,7 @@ class BardConfigForm extends React.Component {
                     })(<Select
                         mode="multiple"
                         placeholder="Please select"
+                        disabled={installLoading}
                         onChange={(v)=>{
                             // console.log(v)
                             setFieldsValue({ plugins: v })
@@ -438,7 +451,7 @@ class BardConfigForm extends React.Component {
                     label={
                         <span>
                             子协议&nbsp;
-                            <Tooltip title="通讯使用的子协议">
+                            <Tooltip title="通讯使用的子协议，插件配置不为空时，该项也不得为空">
                                 <Icon type="question-circle-o" />
                             </Tooltip>
                         </span>
@@ -453,6 +466,7 @@ class BardConfigForm extends React.Component {
                         placeholder="插件配置不为空时，该项也不得为空"
                         optionFilterProp="children"
                         allowClear
+                        disabled={installLoading}
                         onChange={(v) => {
                             setFieldsValue({ TCSP: v })
                         }}
@@ -469,8 +483,10 @@ class BardConfigForm extends React.Component {
                 </Item>
 
                 <Row style={{ paddingBottom: 8}}>
-                    <Col lg={{span: 5, offset: 4}}>
-                        <Button type="primary" htmlType="submit" onClick={this.saveConfig}>
+                    <Col span={5} offset={4} >
+                        <Button type="primary" htmlType="submit" 
+                                disabled={installLoading}
+                                onClick={this.saveConfig}>
                             保存配置
                         </Button>
                     </Col>
@@ -486,38 +502,40 @@ class BardConfigForm extends React.Component {
                         </Button>
                     </Col> */}
 
-                    <Col span={5}>
-                    <Popconfirm
-                        title="确定重新安装?(覆盖配置)"
-                        onConfirm={this.install}
-                        // onCancel={cancel}
-                        okText="Yes"
-                        cancelText="No"
-                    >
-                        <Button type="primary" htmlType="submit" 
-                            loading={this.state.installLoading}
+                    <Col span={5} >
+                        <Popconfirm
+                            title="确定安装?(如果已安装会覆盖配置)"
+                            onConfirm={this.install}
+                            // onCancel={cancel}
+                            okText="Yes"
+                            cancelText="No"
                         >
-                            安装bard
-                        </Button>
-                    </Popconfirm>
+                            <Button type="primary" htmlType="submit"
+                                disabled={installLoading}
+                                loading={this.state.installLoading}
+                            >
+                                安装bard
+                            </Button>
+                        </Popconfirm>
                         
                     </Col>
 
-                    <Col span={5}>
+                    <Col span={5} >
                         <Button type="primary" htmlType="submit" onClick={this.restart}
+                            disabled={installLoading}
                             loading={this.state.restartLoading}
                         >
                             重启bard
                         </Button>
                     </Col>
 
-                    <Col lg={5} style={{ paddingTop: 5, paddingLeft: 15 }}>
+                    <Col span={5} style={{ paddingTop: 5, paddingLeft: 15 }}>         
                         <Switch style={ switchStyle }
                             checked={this.state.status}
                             onChange={this.onSwitch}
+                            disabled={installLoading}
                             loading={this.state.switchLoading}
-                        >
-                          
+                        >  
                         </Switch>
                     </Col>
                 </Row>   
