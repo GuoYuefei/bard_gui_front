@@ -1,1 +1,2 @@
-export const api_host = "http://localhost:2019"
+export const api_host = process.env.NODE_ENV === 'production' ? '' : "http://localhost:2019"
+

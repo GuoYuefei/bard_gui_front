@@ -21,6 +21,8 @@ class BardConfigForm extends React.Component {
     }
 
     componentDidMount() {
+        // console.log(process.env.NODE_ENV)
+        // console.log("api_host: ", api_host)
         this.loadingPlugins()
         this.loading()
         this.timer_status()
